@@ -1,7 +1,7 @@
 package fun
 
 func genDefaultServiceTemplate() string {
-	return `import client from "./client";
+	return `import client,{resultStatus,result,on} from "./client";
 {{- range .GenServiceList}}
 import {{.ServiceName}} from "./{{.ServiceName}}";
 {{- end}}
@@ -19,12 +19,14 @@ export default class fun {
     this.defaultApi = this.defaultApi ? this.defaultApi : new defaultApi (url);
     return this.defaultApi;
   }
-}`
+}
+export { resultStatus  };
+export { result  };
+export { on };`
 }
 
 func genServiceTemplate() string {
-	return `import type {result{{- if .IsIncludeProxy }},on{{- end}}} from "./client";
-import {defaultApi} from "./fun"
+	return `import {defaultApi,result{{- if .IsIncludeProxy }},on{{- end}}} from "./fun"
 {{- range .GenImport}}
 import type {{.Name}} from "./{{.Path}}";
 {{- end}}
