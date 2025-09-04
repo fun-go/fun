@@ -77,12 +77,12 @@ go run main.go
 fun.Gen()
 ```
 
-运行后，TypeScript 代码将生成在 `../gen/ts/` 目录下。
+运行后，TypeScript 代码将生成在 `../gen/ts/` 目录下,复制到前端项目中。
 
 ### 5. 客户端使用示例
 
 ```typescript
-import fun from "./gen/ts/fun";
+import fun from "./server/fun";
 
 // 创建客户端实例
 const client = fun.create("ws://localhost:3000");
@@ -96,7 +96,7 @@ console.log(result); // "Hello, World"
 
 ### 服务（Service）
 
-服务是包含业务逻辑的结构体，必须嵌入 [fun.Ctx](file://f:\fun\ctx.go#L2-L12)：
+服务是包含业务逻辑的结构体，必须嵌入 [fun.Ctx]：
 
 ```go
 type UserService struct {
@@ -122,8 +122,8 @@ func (s *UserService) GetUser(dto UserDto) *User {
 
 ```go
 type UserDto struct {
-    Name  string `validate:"required"`
-    Email string `validate:"required,email"`
+    Name  string 
+    Email string `validate:"email"`
     Age   int    `validate:"min=0,max=150"`
 }
 ```
@@ -207,7 +207,7 @@ func (r *Repository) New() {
 
 type UserService struct {
     fun.Ctx
-    Repo *Repository `fun:"auto"` // 自动注入
+    Repo *Repository  // 自动注入
 }
 ```
 
