@@ -46,8 +46,9 @@ func getMessage(t *testing.T, id string, result any) {
 }
 
 func mockSendJson(t *testing.T, requestInfo any) {
+	map1 := ToLowerMap(requestInfo)
 	writeMutex.Lock()
-	err := testClient.WriteJSON(requestInfo)
+	err := testClient.WriteJSON(map1)
 	writeMutex.Unlock()
 	if err != nil {
 		ErrorLogger(fmt.Sprintf("%v", err))
