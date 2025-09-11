@@ -75,24 +75,17 @@ func (f *Future[T]) Then(callback func(T, error)) {
 
 // AllFuture 等待多个 Future 完成，返回结果切片和错误切片
 type FutureAllType[T any] struct {
-	Results []T
-	Errors  []error
+	Result T
+	Error  error
 }
 
-func AllFuture[T any](futures ...*Future[T]) FutureAllType[T] {
-	results := make([]T, len(futures))
-	var errors []error
-
+func AllFuture[T any](futures ...*Future[T]) []FutureAllType[T] {
+	results := make([]FutureAllType[T], len(futures))
 	for i, f := range futures {
 		value, err := f.Join()
-		if err != nil {
-			errors = append(errors, err)
-		}
-		results[i] = value
+		results[i].Error = err
+		results[i].Result = value
 	}
 
-	return FutureAllType[T]{
-		Results: results,
-		Errors:  errors,
-	}
+	return results
 }
