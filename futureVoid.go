@@ -55,12 +55,14 @@ func (t *FutureVoid) Join() error {
 }
 
 // AllFutureVoid waits for all tasks to complete and returns any error that occurred.
-func AllFutureVoid(tasks ...*FutureVoid) error {
-	var errors []error
-	for _, task := range tasks {
+func AllFutureVoid(tasks ...*FutureVoid) []error {
+	errors := make([]error, len(tasks))
+
+	for i, task := range tasks {
 		if err := task.Join(); err != nil {
-			errors = append(errors, err)
+			errors[i] = err
 		}
 	}
+
 	return errors
 }

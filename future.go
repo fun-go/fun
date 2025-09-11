@@ -81,6 +81,7 @@ type FutureAllType[T any] struct {
 
 func AllFuture[T any](futures ...*Future[T]) []FutureAllType[T] {
 	results := make([]FutureAllType[T], len(futures))
+
 	for i, f := range futures {
 		value, err := f.Join()
 		results[i].Error = err
