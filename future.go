@@ -1,6 +1,7 @@
 package fun
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 )
@@ -9,7 +10,7 @@ type Future[T any] struct {
 	ch    chan T
 	value T
 	once  sync.Once
-	err   any // 添加错误字段来存储错误信息
+	err   error // 添加错误字段来存储错误信息
 }
 
 func NewFuture[T any](callback func() T) *Future[T] {
@@ -29,7 +30,11 @@ func NewFuture[T any](callback func() T) *Future[T] {
 				} else {
 					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
 				}
-				fv.err = err
+				if e, ok := err.(error); ok {
+					fv.err = e
+				} else {
+					fv.err = fmt.Errorf("%v", err)
+				}
 			}
 			close(ch)
 		}()
@@ -42,14 +47,14 @@ func NewFuture[T any](callback func() T) *Future[T] {
 	return fv
 }
 
-func (f *Future[T]) Join() (T, any) {
+func (f *Future[T]) Join() (T, error) {
 	f.once.Do(func() {
 		f.value = <-f.ch
 	})
 	return f.value, f.err
 }
 
-func (f *Future[T]) Then(callback func(T, any)) {
+func (f *Future[T]) Then(callback func(T, error)) {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
@@ -71,12 +76,12 @@ func (f *Future[T]) Then(callback func(T, any)) {
 // AllFuture 等待多个 Future 完成，返回结果切片和错误切片
 type FutureAllType[T any] struct {
 	Results []T
-	Errors  []any
+	Errors  []error
 }
 
 func AllFuture[T any](futures ...*Future[T]) FutureAllType[T] {
 	results := make([]T, len(futures))
-	var errors []any
+	var errors []error
 
 	for i, f := range futures {
 		value, err := f.Join()

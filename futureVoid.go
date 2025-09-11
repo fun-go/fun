@@ -1,6 +1,7 @@
 package fun
 
 import (
+	"fmt"
 	"runtime"
 	"sync"
 )
@@ -8,7 +9,7 @@ import (
 type FutureVoid struct {
 	ch   chan struct{} // notification channel
 	once sync.Once
-	err  any // 添加错误字段来存储错误信息
+	err  error // 添加错误字段来存储错误信息
 }
 
 // NewFutureVoid starts a new asynchronous task.
@@ -27,7 +28,11 @@ func NewFutureVoid(callback func()) *FutureVoid {
 				} else {
 					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
 				}
-				fv.err = err
+				if e, ok := err.(error); ok {
+					fv.err = e
+				} else {
+					fv.err = fmt.Errorf("%v", err)
+				}
 			}
 			close(ch)
 		}()
@@ -42,7 +47,7 @@ func NewFutureVoid(callback func()) *FutureVoid {
 }
 
 // Join blocks until the task completes and returns any error that occurred.
-func (t *FutureVoid) Join() any {
+func (t *FutureVoid) Join() error {
 	t.once.Do(func() {
 		<-t.ch
 	})
@@ -50,8 +55,8 @@ func (t *FutureVoid) Join() any {
 }
 
 // AllFutureVoid waits for all tasks to complete and returns any error that occurred.
-func AllFutureVoid(tasks ...*FutureVoid) any {
-	var errors []any
+func AllFutureVoid(tasks ...*FutureVoid) error {
+	var errors []error
 	for _, task := range tasks {
 		if err := task.Join(); err != nil {
 			errors = append(errors, err)
