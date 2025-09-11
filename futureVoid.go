@@ -54,6 +54,25 @@ func (t *FutureVoid) Join() error {
 	return t.err
 }
 
+func (t *FutureVoid) Then(callback func(error)) {
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				stackBuf := make([]byte, 8192)
+				stackSize := runtime.Stack(stackBuf, false)
+				stackTrace := string(stackBuf[:stackSize])
+				if value, ok := err.(Result[any]); ok {
+					InfoLogger(err)
+				} else {
+					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
+				}
+			}
+		}()
+		err := t.Join()
+		callback(err)
+	}()
+}
+
 // AllFutureVoid waits for all tasks to complete and returns any error that occurred.
 func AllFutureVoid(tasks ...*FutureVoid) []error {
 	errors := make([]error, len(tasks))
