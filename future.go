@@ -8,63 +8,86 @@ import (
 type Future[T any] struct {
 	ch    chan T
 	value T
-	once  sync.Once // 保证只执行一次
-	ctx   Ctx
+	once  sync.Once
+	err   any // 添加错误字段来存储错误信息
 }
 
-func NewFuture[T any](ctx Ctx, callback func() T) *Future[T] {
+func NewFuture[T any](callback func() T) *Future[T] {
 	ch := make(chan T, 1)
+	fv := &Future[T]{
+		ch: ch,
+	}
+
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
 				stackBuf := make([]byte, 8192)
 				stackSize := runtime.Stack(stackBuf, false)
 				stackTrace := string(stackBuf[:stackSize])
-				fun.returnData(ctx.Id, ctx.RequestId, err, stackTrace)
+				if value, ok := err.(Result[any]); ok {
+					InfoLogger(err)
+				} else {
+					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
+				}
+				fv.err = err
 			}
 			close(ch)
 		}()
 
+		// 调用回调函数并处理返回的错误
 		value := callback()
 		ch <- value
 	}()
 
-	return &Future[T]{
-		ch:  ch,
-		ctx: ctx,
-	}
+	return fv
 }
 
-func (f *Future[T]) Join() T {
+func (f *Future[T]) Join() (T, any) {
 	f.once.Do(func() {
 		f.value = <-f.ch
 	})
-	return f.value
+	return f.value, f.err
 }
 
-func (f *Future[T]) Then(callback func(T)) {
+func (f *Future[T]) Then(callback func(T, any)) {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
 				stackBuf := make([]byte, 8192)
 				stackSize := runtime.Stack(stackBuf, false)
 				stackTrace := string(stackBuf[:stackSize])
-				fun.returnData(f.ctx.Id, f.ctx.RequestId, err, stackTrace)
+				if value, ok := err.(Result[any]); ok {
+					InfoLogger(err)
+				} else {
+					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
+				}
 			}
 		}()
-		callback(f.Join())
+		value, err := f.Join()
+		callback(value, err)
 	}()
 }
 
-// AllFuture 并行等待所有完成
-// AllFuture 等待多个 Future 完成，直接返回结果切片（阻塞）
-func AllFuture[T any](futures ...*Future[T]) []T {
-	if len(futures) == 0 {
-		panic(callError("fun: AllFuture: no futures provided"))
-	}
+// AllFuture 等待多个 Future 完成，返回结果切片和错误切片
+type FutureAllType[T any] struct {
+	Results []T
+	Errors  []any
+}
+
+func AllFuture[T any](futures ...*Future[T]) FutureAllType[T] {
 	results := make([]T, len(futures))
+	var errors []any
+
 	for i, f := range futures {
-		results[i] = f.Join()
+		value, err := f.Join()
+		if err != nil {
+			errors = append(errors, err)
+		}
+		results[i] = value
 	}
-	return results
+
+	return FutureAllType[T]{
+		Results: results,
+		Errors:  errors,
+	}
 }
