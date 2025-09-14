@@ -89,7 +89,7 @@ func Start(addr ...uint16) {
 	}
 }
 
-func Gen() {
+func GenCode(genList ...Gen) {
 	defer func() {
 		if err := recover(); err != nil {
 			stackBuf := make([]byte, 8192)
@@ -102,7 +102,10 @@ func Gen() {
 	if err != nil && !os.IsNotExist(err) {
 		panic(err.Error())
 	}
-	genDefaultService()
+	checkGenList(genList)
+	for _, gen := range genList {
+		gen.genDefaultService()
+	}
 }
 
 func StartTls(certFile string, keyFile string, addr ...uint16) {

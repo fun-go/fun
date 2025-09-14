@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 )
@@ -124,18 +125,24 @@ func GetProxyMessage(t *testing.T, id string, proxy ProxyMessage, seconds int64)
 				Id:   id,
 				Type: CloseType,
 			})
+			if proxy.Close != nil {
+				proxy.Close()
+			}
 			return
 		}
 	}
 }
 
+var clientOnce sync.Once
+
 func newClientOrService() {
-	if testPort == nil {
+	// 使用 sync.Once 确保初始化代码只执行一次，且线程安全
+	clientOnce.Do(func() {
 		port := randomPort()
 		testPort = &port
 		go func() {
 			Start(port)
 		}()
-		client(*testPort)
-	}
+		mockClient(*testPort)
+	})
 }

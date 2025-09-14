@@ -45,6 +45,27 @@ func checkGuard(guard Guard) {
 	}
 }
 
+func checkGenList(genList []Gen) {
+	// 定义允许的gen列表
+	gens := []Gen{GenTs{}, GenGo{}}
+	// 遍历传入的gen列表
+	for _, gen := range genList {
+		found := false
+		// 检查当前gen是否在允许列表中
+		for _, allowedGen := range gens {
+			// 通过类型比较判断是否匹配
+			if reflect.TypeOf(gen) == reflect.TypeOf(allowedGen) {
+				found = true
+				break
+			}
+		}
+		// 如果不在允许列表中，则panic
+		if !found {
+			panic("Fun: unsupported Gen type " + reflect.TypeOf(gen).Name())
+		}
+	}
+}
+
 // 验证方法
 func checkMethod(t reflect.Type, f *Fun) {
 	for i := 0; i < t.NumMethod(); i++ {

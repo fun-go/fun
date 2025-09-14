@@ -1,9 +1,10 @@
 package fun
 
 import (
-	gonanoid "github.com/matoous/go-nanoid/v2"
 	"reflect"
 	"testing"
+
+	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 const (
