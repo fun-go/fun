@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-playground/validator/v10"
 	"net/http"
 	"reflect"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/go-playground/validator/v10"
 
 	"github.com/gorilla/websocket"
 )
@@ -38,6 +39,9 @@ func handleWebSocket(fun *Fun) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var timer *time.Timer
+		timer = time.AfterFunc(7*time.Second, func() {
+			fun.closeFuncCell(timer, conn, id)
+		})
 		//到期回收
 		defer func() {
 			fun.closeFuncCell(&timer, conn, id)
@@ -60,7 +64,7 @@ func handleWebSocket(fun *Fun) func(w http.ResponseWriter, r *http.Request) {
 			fun.close(id, requestId)
 		}
 		for {
-			if fun.handleResponse(conn, &timer, ctx) {
+			if fun.handleResponse(conn, timer, ctx) {
 				return
 			}
 		}
@@ -68,7 +72,7 @@ func handleWebSocket(fun *Fun) func(w http.ResponseWriter, r *http.Request) {
 }
 
 // 处理请求
-func (fun *Fun) handleResponse(conn *websocket.Conn, timer **time.Timer, ctx Ctx) bool {
+func (fun *Fun) handleResponse(conn *websocket.Conn, timer *time.Timer, ctx Ctx) bool {
 	//获取信息
 	messageType, message, err := conn.ReadMessage()
 	if err != nil {
@@ -79,12 +83,12 @@ func (fun *Fun) handleResponse(conn *websocket.Conn, timer **time.Timer, ctx Ctx
 }
 
 // 处理消息
-func (fun *Fun) handleMessage(messageType int, message *[]byte, timer **time.Timer, conn *websocket.Conn, ctx *Ctx) {
+func (fun *Fun) handleMessage(messageType int, message *[]byte, timer *time.Timer, conn *websocket.Conn, ctx *Ctx) {
 	if messageType == websocket.BinaryMessage {
 		//处理客户端ping信息 回复
 		if len(*message) == 1 && (*message)[0] == 0 {
 			fun.sendPong(ctx.Id)
-			fun.resetTimer(timer, conn, ctx.Id)
+			timer.Reset(7 * time.Second)
 		}
 		return
 	}

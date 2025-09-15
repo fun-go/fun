@@ -199,12 +199,10 @@ func (fun *Fun) cellMethod(ctx *Ctx, service *service, registeredMethod *method,
 
 }
 
-func (fun *Fun) closeFuncCell(timer **time.Timer, conn *websocket.Conn, id string) {
+func (fun *Fun) closeFuncCell(timer *time.Timer, conn *websocket.Conn, id string) {
 	_ = conn.Close()
 	if conn != nil {
-		if *timer != nil {
-			(*timer).Stop()
-		}
+		timer.Stop()
 		connInfo, ok := fun.connList.Load(id)
 		if !ok {
 			return
