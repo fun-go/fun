@@ -30,7 +30,12 @@ func New{{.ServiceName}}(client *Client) *{{.ServiceName}} {
     return &{{.ServiceName}}{
         Client:client,
     }
-}`
+}
+{{- $serviceName := .ServiceName }}
+{{- range .GenMethodTypeList}}
+func (ctx *{{$serviceName}}) {{.MethodName}}({{.DtoText}}) {{.ReturnValueText}} {
+    return await this.client.request<{{.GenericTypeText}}>("{{$serviceName}}", "{{.MethodName}}"{{.ArgsText}})
+}{{- end}}`
 }
 
 func (ctx templateGo) genStructTemplate() string {

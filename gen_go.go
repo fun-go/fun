@@ -84,9 +84,9 @@ func (ctx GenGo) genService(
 		if method.dto != nil {
 			v := ctx.typeToTemplateType(*method.dto)
 			if !strings.Contains(v, "[]") && strings.Contains(v, "[") {
-				dtoText += "dto:" + getGenericTypeName(v) + parseGenericTypeParams(v)
+				dtoText += "dto " + getGenericTypeName(v) + parseGenericTypeParams(v)
 			} else {
-				dtoText += "dto:" + v
+				dtoText += "dto " + v
 			}
 			argsText += ",dto"
 			ctx.genStruct(*method.dto)
@@ -103,7 +103,7 @@ func (ctx GenGo) genService(
 			returnValueText = "() => void"
 		} else {
 			genericTypeText = returnValueText
-			returnValueText = "result<" + returnValueText + ">"
+			returnValueText = "result[" + returnValueText + "]"
 		}
 
 		// 添加方法信息到服务上下文
