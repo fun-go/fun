@@ -44,13 +44,15 @@ func handleWebSocket(fun *Fun) func(w http.ResponseWriter, r *http.Request) {
 		})
 		//到期回收
 		defer func() {
-			fun.closeFuncCell(&timer, conn, id)
+			fun.closeFuncCell(timer, conn, id)
 		}()
 		//客户端连接通知
 		if fun.openFunc != nil {
 			fun.openFunc(id)
 		}
-		fun.resetTimer(&timer, conn, id)
+		timer = time.AfterFunc(7*time.Second, func() {
+			fun.closeFuncCell(timer, conn, id)
+		})
 		//丢入客户端连接池
 		fun.connList.Store(id, connInfoType{conn: conn, mu: &sync.Mutex{}, onList: &sync.Map{}})
 		//封装用户上下文
@@ -184,13 +186,4 @@ func (fun *Fun) dto(request *RequestInfo[map[string]any], ctx *Ctx) {
 	} else {
 		fun.cellMethod(ctx, service, method, nil, request)
 	}
-}
-
-func (fun *Fun) resetTimer(timer **time.Timer, conn *websocket.Conn, id string) {
-	if *timer != nil {
-		(*timer).Stop()
-	}
-	*timer = time.AfterFunc(7*time.Second, func() {
-		fun.closeFuncCell(timer, conn, id)
-	})
 }

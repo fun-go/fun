@@ -20,26 +20,25 @@ func (fun *Fun) Push(id string, requestId string, data any) bool {
 		return false
 	}
 	loadConnInfo := connInfo.(connInfoType)
-	loadConnInfo.mu.Lock()
-	defer loadConnInfo.mu.Unlock()
 	on, ok := loadConnInfo.onList.Load(requestId)
-	if ok {
-		method := fun.serviceList[on.(onType).serviceName].methodList[on.(onType).methodName]
-		if method.method.Type.Out(0).Elem() == reflect.TypeOf(data) {
-			result := success(data)
-			result.Id = requestId
-			map1 := ToLowerMap(result)
-			err := loadConnInfo.conn.WriteJSON(map1)
-			if err != nil {
-				return false
-			}
-		} else {
-			return false
-		}
-	} else {
+	if !ok {
 		return false
 	}
-	return true
+
+	method := fun.serviceList[on.(onType).serviceName].methodList[on.(onType).methodName]
+	if method.method.Type.Out(0).Elem() != reflect.TypeOf(data) {
+		return false
+	}
+	// 准备数据
+	result := success(data)
+	result.Id = requestId
+	map1 := ToLowerMap(result)
+
+	// 只在实际发送时加锁
+	loadConnInfo.mu.Lock()
+	err := loadConnInfo.conn.WriteJSON(map1)
+	loadConnInfo.mu.Unlock()
+	return err == nil
 }
 
 // 发送二进制信息
