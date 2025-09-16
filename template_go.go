@@ -4,38 +4,43 @@ type templateGo struct{}
 
 func (ctx templateGo) genDefaultServiceTemplate() string {
 	return `package api
+import "github.com/fun-go/fun-client-go"
 type Api struct {
 {{- range .GenServiceList}}
 	{{.ServiceName}} *{{.ServiceName}}
 {{- end}}
-    *Client
+    *client.Client
 }
 func CreateApi(url string) Api {
-    client := NewClient(url)
+    apiClient := client.NewClient(url)
 	return Api{
 {{- range .GenServiceList}}
-	    {{.ServiceName}}:New{{.ServiceName}}(client),
+	    {{.ServiceName}}:New{{.ServiceName}}(apiClient),
 {{- end}}
-		Client:client,
+		Client:apiClient,
 	}
 }`
 }
 
 func (ctx templateGo) genServiceTemplate() string {
 	return `package api
+import "github.com/fun-go/fun-client-go"
 type {{.ServiceName}} struct {
-    *Client
+    *client.Client
 }
-func New{{.ServiceName}}(client *Client) *{{.ServiceName}} {
+func New{{.ServiceName}}(client *client.Client) *{{.ServiceName}} {
     return &{{.ServiceName}}{
         Client:client,
     }
 }
 {{- $serviceName := .ServiceName }}
 {{- range .GenMethodTypeList}}
-func (ctx *{{$serviceName}}) {{.MethodName}}({{.DtoText}}) {{.ReturnValueText}} {
-    return await this.client.request<{{.GenericTypeText}}>("{{$serviceName}}", "{{.MethodName}}"{{.ArgsText}})
-}{{- end}}`
+{{if eq .ArgsText ",dto,on"}}func (ctx *{{$serviceName}}) {{.MethodName}}({{.DtoText}}) {{.ReturnValueText}} {
+    return client.Proxy[{{.GenericTypeText}}](ctx.Client,"{{$serviceName}}", "{{.MethodName}}"{{.ArgsText}})
+}{{else}}func (ctx *{{$serviceName}}) {{.MethodName}}({{.DtoText}}) {{.ReturnValueText}} {
+    return client.Request[{{.GenericTypeText}}](ctx.Client,"{{$serviceName}}", "{{.MethodName}}"{{.ArgsText}})
+}{{end}}
+{{- end}}`
 }
 
 func (ctx templateGo) genStructTemplate() string {

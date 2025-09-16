@@ -43,7 +43,7 @@ func (ctx GenGo) genService(
 			isIncludeProxy = true
 		}
 		if method.method.Type.NumOut() == 0 {
-			returnValueText = "null"
+			returnValueText = "client.Void"
 		} else {
 			returnType := method.method.Type.Out(0)
 
@@ -97,13 +97,13 @@ func (ctx GenGo) genService(
 			if method.dto != nil {
 				dtoText += ","
 			}
-			dtoText += "on:on<" + strings.ReplaceAll(returnValueText, " | null", "") + ">"
+			dtoText += "on client.On[" + strings.ReplaceAll(returnValueText, "*", "") + "]"
 			argsText += ",on"
-			genericTypeText = strings.ReplaceAll(returnValueText, " | null", "")
-			returnValueText = "() => void"
+			genericTypeText = strings.ReplaceAll(returnValueText, "*", "")
+			returnValueText = "func()"
 		} else {
 			genericTypeText = returnValueText
-			returnValueText = "result[" + returnValueText + "]"
+			returnValueText = "client.Result[" + returnValueText + "]"
 		}
 
 		// 添加方法信息到服务上下文
