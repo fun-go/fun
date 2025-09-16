@@ -36,8 +36,8 @@ func (fun *Fun) Push(id string, requestId string, data any) bool {
 
 	// 只在实际发送时加锁
 	loadConnInfo.mu.Lock()
-	defer loadConnInfo.mu.Unlock()
 	err := loadConnInfo.conn.WriteJSON(map1)
+	loadConnInfo.mu.Unlock()
 	return err == nil
 }
 
