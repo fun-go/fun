@@ -11,14 +11,14 @@ type Api struct {
 {{- end}}
     *client.Client
 }
-func CreateApi(url string) Api {
-    apiClient := client.NewClient(url)
+func CreateApi(url string) (Api,error) {
+    apiClient,err := client.NewClient(url)
 	return Api{
 {{- range .GenServiceList}}
 	    {{.ServiceName}}:New{{.ServiceName}}(apiClient),
 {{- end}}
 		Client:apiClient,
-	}
+	},err
 }`
 }
 
@@ -35,7 +35,7 @@ func New{{.ServiceName}}(client *client.Client) *{{.ServiceName}} {
 }
 {{- $serviceName := .ServiceName }}
 {{- range .GenMethodTypeList}}
-{{if eq .ArgsText ",dto,on"}}func (ctx *{{$serviceName}}) {{.MethodName}}({{.DtoText}}) {{.ReturnValueText}} {
+{{if .IsProxy }}func (ctx *{{$serviceName}}) {{.MethodName}}({{.DtoText}}) {{.ReturnValueText}} {
     return client.Proxy[{{.GenericTypeText}}](ctx.Client,"{{$serviceName}}", "{{.MethodName}}"{{.ArgsText}})
 }{{else}}func (ctx *{{$serviceName}}) {{.MethodName}}({{.DtoText}}) {{.ReturnValueText}} {
     return client.Request[{{.GenericTypeText}}](ctx.Client,"{{$serviceName}}", "{{.MethodName}}"{{.ArgsText}})

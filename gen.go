@@ -40,6 +40,7 @@ type genMethodType struct {
 	DtoText         string
 	ArgsText        string
 	GenericTypeText string
+	IsProxy         bool
 }
 
 type genEnumType struct {

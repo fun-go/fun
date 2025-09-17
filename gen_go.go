@@ -90,6 +90,10 @@ func (ctx GenGo) genService(
 			}
 			argsText += ",dto"
 			ctx.genStruct(*method.dto)
+		} else {
+			if method.isProxy {
+				argsText += ",nil"
+			}
 		}
 
 		// 处理代理逻辑（on 回调）
@@ -113,6 +117,7 @@ func (ctx GenGo) genService(
 			DtoText:         dtoText,
 			ArgsText:        argsText,
 			GenericTypeText: genericTypeText,
+			IsProxy:         method.isProxy,
 		})
 	}
 	serviceContext.IsIncludeProxy = isIncludeProxy

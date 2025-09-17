@@ -112,6 +112,10 @@ func (ctx GenTs) genService(
 			}
 			argsText += ",dto"
 			nestedImports = append(nestedImports, ctx.genStruct(*method.dto))
+		} else {
+			if method.isProxy {
+				argsText += ",null"
+			}
 		}
 
 		// 处理代理逻辑（on 回调）
@@ -135,6 +139,7 @@ func (ctx GenTs) genService(
 			DtoText:         dtoText,
 			ArgsText:        argsText,
 			GenericTypeText: firstLetterToLower(genericTypeText),
+			IsProxy:         method.isProxy,
 		})
 	}
 	serviceContext.IsIncludeProxy = isIncludeProxy
