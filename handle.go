@@ -80,12 +80,12 @@ func (fun *Fun) handleResponse(conn *websocket.Conn, timer *time.Timer, ctx Ctx)
 	if err != nil {
 		return true
 	}
-	fun.handleMessage(messageType, &message, timer, conn, &ctx)
+	fun.handleMessage(messageType, &message, timer, &ctx)
 	return false
 }
 
 // 处理消息
-func (fun *Fun) handleMessage(messageType int, message *[]byte, timer *time.Timer, conn *websocket.Conn, ctx *Ctx) {
+func (fun *Fun) handleMessage(messageType int, message *[]byte, timer *time.Timer, ctx *Ctx) {
 	if messageType == websocket.BinaryMessage {
 		//处理客户端ping信息 回复
 		if len(*message) == 1 && (*message)[0] == 0 {
