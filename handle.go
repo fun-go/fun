@@ -50,9 +50,6 @@ func handleWebSocket(fun *Fun) func(w http.ResponseWriter, r *http.Request) {
 		if fun.openFunc != nil {
 			fun.openFunc(id)
 		}
-		timer = time.AfterFunc(7*time.Second, func() {
-			fun.closeFuncCell(timer, conn, id)
-		})
 		//丢入客户端连接池
 		fun.connList.Store(id, connInfoType{conn: conn, mu: &sync.Mutex{}, onList: &sync.Map{}})
 		//封装用户上下文
