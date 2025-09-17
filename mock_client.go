@@ -51,7 +51,7 @@ func mockClient(port uint16) {
 func handleTestMessage(result Result[any]) {
 	// 检查是否有对应的测试请求
 	if value, exists := testRequestMap.Load(result.Id); exists {
-		requestInfo := value.(*testRequestInfo)
+		requestInfo := value.(testRequestInfo)
 
 		// 处理普通请求
 		if requestInfo.resultChan != nil {
