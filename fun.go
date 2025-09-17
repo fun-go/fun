@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -282,10 +283,13 @@ func getErrorString(data any) string {
 	}
 }
 
-func ToLowerMap(obj interface{}) map[string]interface{} {
+func ToLowerMap(obj interface{}, t ...*testing.T) map[string]interface{} {
 	// 先将对象序列化为 JSON 字节
-	jsonBytes, _ := json.Marshal(obj)
-
+	jsonBytes, err := json.Marshal(obj)
+	if len(t) == 1 {
+		ErrorLogger(fmt.Sprintf("%v", err))
+		t[0].Fail()
+	}
 	// 再将 JSON 字节反序列化为 map
 	var m map[string]interface{}
 	_ = json.Unmarshal(jsonBytes, &m)

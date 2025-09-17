@@ -2,7 +2,6 @@ package fun
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"sync"
 	"testing"
@@ -50,14 +49,10 @@ func getMessage[T any](t *testing.T, id string) Result[T] {
 }
 
 func mockSendJson(t *testing.T, requestInfo any) {
-	map1 := ToLowerMap(requestInfo)
+	map1 := ToLowerMap(requestInfo, t)
 	writeMutex.Lock()
-	err := testClient.WriteJSON(map1)
+	_ = testClient.WriteJSON(map1)
 	writeMutex.Unlock()
-	if err != nil {
-		ErrorLogger(fmt.Sprintf("%v", err))
-		t.Fail()
-	}
 }
 
 func MockRequest[T any](t *testing.T, requestInfo any) Result[T] {
