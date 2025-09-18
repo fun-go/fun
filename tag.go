@@ -19,7 +19,11 @@ func newTag(tag reflect.StructTag) *Tag {
 			continue
 		}
 		keyValue := strings.Split(pair, ":")
-		t.TagList[keyValue[0]] = threeYuan(len(keyValue) < 2, "", keyValue[1])
+		if len(keyValue) == 1 {
+			t.TagList[keyValue[0]] = ""
+		} else {
+			t.TagList[keyValue[0]] = keyValue[1]
+		}
 	}
 	return t
 }
