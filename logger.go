@@ -38,7 +38,7 @@ type Logger struct {
 
 const logFile = "../log/"
 
-var logger *Logger = &Logger{
+var logger Logger = Logger{
 	Level:          TraceLevel,
 	Mode:           TerminalMode,
 	MaxSizeFile:    0,
@@ -69,58 +69,6 @@ func deleteLogWorker() {
 				cleanupExpiredLogs()
 			}
 		}
-	}
-}
-
-func getFileNameInfo(name string) fileName {
-	// 分割文件名获取日期和索引部分
-	fileNameParts := strings.Split(name, ".log.")
-
-	// 检查文件名格式是否正确
-	if len(fileNameParts) != 2 {
-		WarnLogger(fmt.Sprintf("Invalid log filename format: %s", name))
-		deleteLog(name)
-		return fileName{}
-	}
-
-	// 解析日期部分
-	dateLayout := "2006-01-02"
-	dateString := fileNameParts[0]
-	fileDate, err := time.Parse(dateLayout, dateString)
-	if err != nil {
-		WarnLogger(fmt.Sprintf("Failed to parse date from filename %s: %v", name, err))
-		deleteLog(name)
-		return fileName{}
-	}
-
-	// 解析文件索引
-	indexString := fileNameParts[1]
-	// 移除可能的 .log 扩展名
-	indexString = strings.TrimSuffix(indexString, ".log")
-
-	fileIndex, err := strconv.ParseInt(indexString, 10, 32)
-	if err != nil {
-		WarnLogger(fmt.Sprintf("Failed to parse index from filename %s: %v", name, err))
-		deleteLog(name)
-		return fileName{}
-	}
-
-	return fileName{
-		index:      int32(fileIndex),
-		LoggerTime: fileDate.UnixMilli(),
-	}
-}
-
-func deleteLog(name string) {
-	// 删除文件
-	fullPath := filepath.Join(logFile, name)
-	err := os.Remove(fullPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			ErrorLogger(fmt.Sprintf("Failed to delete log file %s: %v", fullPath, err))
-		}
-	} else {
-		InfoLogger(fmt.Sprintf("Successfully deleted log file: %s", fullPath))
 	}
 }
 
@@ -184,6 +132,57 @@ func cleanupExpiredLogs() {
 		}
 	}
 	InfoLogger(fmt.Sprintf("Log cleanup completed. Deleted %d expired files", cleanedCount))
+}
+
+func getFileNameInfo(name string) fileName {
+	// 分割文件名获取日期和索引部分
+	fileNameParts := strings.Split(name, ".log.")
+	// 检查文件名格式是否正确
+	if len(fileNameParts) != 2 {
+		WarnLogger(fmt.Sprintf("Invalid log filename format: %s", name))
+		deleteLog(name)
+		return fileName{}
+	}
+
+	// 解析日期部分
+	dateLayout := "2006-01-02"
+	dateString := fileNameParts[0]
+	fileDate, err := time.Parse(dateLayout, dateString)
+	if err != nil {
+		WarnLogger(fmt.Sprintf("Failed to parse date from filename %s: %v", name, err))
+		deleteLog(name)
+		return fileName{}
+	}
+
+	// 解析文件索引
+	indexString := fileNameParts[1]
+	// 移除可能的 .log 扩展名
+	indexString = strings.TrimSuffix(indexString, ".log")
+
+	fileIndex, err := strconv.ParseInt(indexString, 10, 32)
+	if err != nil {
+		WarnLogger(fmt.Sprintf("Failed to parse index from filename %s: %v", name, err))
+		deleteLog(name)
+		return fileName{}
+	}
+
+	return fileName{
+		index:      int32(fileIndex),
+		LoggerTime: fileDate.UnixMilli(),
+	}
+}
+
+func deleteLog(name string) {
+	// 删除文件
+	fullPath := filepath.Join(logFile, name)
+	err := os.Remove(fullPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			ErrorLogger(fmt.Sprintf("Failed to delete log file %s: %v", fullPath, err))
+		}
+	} else {
+		InfoLogger(fmt.Sprintf("Successfully deleted log file: %s", fullPath))
+	}
 }
 
 func fileLogger(text string) {
@@ -312,7 +311,7 @@ func getNextLogFile(dirPath, dateStr string, text string) string {
 	return filepath.Join(dirPath, fmt.Sprintf("%s.log.%d", dateStr, maxIndex))
 }
 
-func ConfigLogger(log *Logger) {
+func ConfigLogger(log Logger) {
 	// 启动日志处理
 	logger = log
 }
