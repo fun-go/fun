@@ -15,6 +15,9 @@ func newTag(tag reflect.StructTag) *Tag {
 	}
 	pairs := strings.Split(strings.TrimSpace(tag.Get("fun")), ";")
 	for _, pair := range pairs {
+		if pair == "" {
+			continue
+		}
 		keyValue := strings.Split(pair, ":")
 		if len(keyValue) == 1 {
 			t.TagList[keyValue[0]] = ""
