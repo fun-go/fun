@@ -3,6 +3,7 @@ package fun
 import (
 	"bytes"
 	"os"
+	"path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -127,11 +128,7 @@ func genCode(templateContent string, outputFileName string, templateData any, la
 		panic(err.Error())
 	}
 	code := buf.Bytes()
-
-	fullPath := directory + languageName + "/"
-	if fullPath != "" && !strings.HasSuffix(fullPath, "/") {
-		fullPath += "/"
-	}
+	fullPath := path.Join(directory, languageName)
 
 	_, err = os.Stat(fullPath)
 	if os.IsNotExist(err) {
@@ -140,7 +137,7 @@ func genCode(templateContent string, outputFileName string, templateData any, la
 			panic(err.Error())
 		}
 	}
-	err = os.WriteFile(fullPath+outputFileName+"."+languageName, code, 0644)
+	err = os.WriteFile(path.Join(fullPath, outputFileName+"."+languageName), code, 0644)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -172,10 +169,10 @@ func firstLetterToUpper(s string) string {
 	return string(runes)
 }
 
-var directory = "./gen/"
+var directory = "./gen"
 
 func SetOutput(path string) {
-	directory = path + "/"
+	directory = path
 }
 
 func camelToSnake(s string) string {

@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -28,15 +29,16 @@ const (
 	FileMode
 )
 
+var logMutex sync.Mutex
+
 type Logger struct {
 	Level          uint8
 	Mode           uint8
 	MaxSizeFile    uint8  //文件最大大小
 	MaxNumberFiles uint64 //文件最多数量
 	ExpireLogsDays uint8  //文件保留时间
+	LogFilePath    string
 }
-
-const logFile = "../log/"
 
 var logger Logger = Logger{
 	Level:          TraceLevel,
@@ -44,6 +46,7 @@ var logger Logger = Logger{
 	MaxSizeFile:    0,
 	MaxNumberFiles: 0,
 	ExpireLogsDays: 0,
+	LogFilePath:    "../log",
 }
 
 type fileName struct {
@@ -72,14 +75,20 @@ func deleteLogWorker() {
 	}
 }
 
+func getLogFilePath() string {
+	return threeYuan(logger.LogFilePath == "", "./log", logger.LogFilePath)
+}
+
 func cleanupExpiredLogs() {
+	logMutex.Lock()
+	defer logMutex.Unlock()
 	// 如果没有设置过期天数，不进行清理
 	if logger.ExpireLogsDays <= 0 {
 		return
 	}
 
 	// 检查日志目录是否存在
-	_, err := os.Stat(logFile)
+	_, err := os.Stat(getLogFilePath())
 	if os.IsNotExist(err) {
 		return
 	}
@@ -90,7 +99,7 @@ func cleanupExpiredLogs() {
 	}
 
 	// 读取目录中的所有条目
-	entries, err := os.ReadDir(logFile)
+	entries, err := os.ReadDir(getLogFilePath())
 	if err != nil {
 		ErrorLogger(fmt.Sprintf("Failed to read log directory: %v", err))
 		return
@@ -115,7 +124,7 @@ func cleanupExpiredLogs() {
 
 			// 检查文件是否过期
 			if fileNameInfo.LoggerTime < expireThreshold {
-				fullPath := filepath.Join(logFile, entry.Name())
+				fullPath := filepath.Join(getLogFilePath(), entry.Name())
 				err := os.Remove(fullPath)
 				if err != nil {
 					if !os.IsNotExist(err) {
@@ -174,7 +183,7 @@ func getFileNameInfo(name string) fileName {
 
 func deleteLog(name string) {
 	// 删除文件
-	fullPath := filepath.Join(logFile, name)
+	fullPath := filepath.Join(getLogFilePath(), name)
 	err := os.Remove(fullPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -186,21 +195,23 @@ func deleteLog(name string) {
 }
 
 func fileLogger(text string) {
+	logMutex.Lock()
+	defer logMutex.Unlock()
 	// 确保日志目录存在
 	currentDate := getCurrentData()
 
-	_, err := os.Stat(logFile)
+	_, err := os.Stat(getLogFilePath())
 	if os.IsNotExist(err) {
-		_ = os.MkdirAll(logFile, os.ModePerm)
-		InfoLogger(fmt.Sprintf("Created log directory: %s", logFile))
+		_ = os.MkdirAll(getLogFilePath(), os.ModePerm)
+		InfoLogger(fmt.Sprintf("Created log directory: %s", getLogFilePath()))
 	}
 
 	// 构建日志文件路径
 	logFileName := currentDate + ".log"
-	logFilePath := filepath.Join(logFile, logFileName)
+	logFilePath := filepath.Join(getLogFilePath(), logFileName)
 
 	// 获取当前目录下所有日志文件以确定下一个文件索引
-	logFilePath = getNextLogFile(logFile, currentDate, text)
+	logFilePath = getNextLogFile(getLogFilePath(), currentDate, text)
 	// 写入日志文件
 	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
@@ -250,8 +261,7 @@ func removeOldestLogFile(entries []os.DirEntry) {
 	for i := 0; i < int(delNum); i++ {
 		fileName := newEntries[i]
 		t := time.Unix(0, fileName.LoggerTime*int64(time.Millisecond))
-		fullPath := filepath.Join(logFile, t.Format("2006-01-02"))
-		fileNamePath := filepath.Join(fullPath, t.Format("2006-01-02")+".log."+strconv.Itoa(int(fileName.index)))
+		fileNamePath := filepath.Join(getLogFilePath(), t.Format("2006-01-02")+".log."+strconv.Itoa(int(fileName.index)))
 		deleteLog(fileNamePath)
 	}
 }
@@ -297,7 +307,7 @@ func getNextLogFile(dirPath, dateStr string, text string) string {
 
 	// 检查最大索引的文件是否超过大小限制
 	if logger.MaxSizeFile > 0 && maxIndex > 0 {
-		currentFile := filepath.Join(dirPath, fmt.Sprintf("%s.%d.log", dateStr, maxIndex))
+		currentFile := filepath.Join(dirPath, fmt.Sprintf("%s.log.%d", dateStr, maxIndex))
 		if fileInfo, err := os.Stat(currentFile); err == nil {
 			maxSizeBytes := int64(logger.MaxSizeFile) * 1024 * 1024 // 转换为字节
 			if fileInfo.Size()+int64(len(text)) > maxSizeBytes {
