@@ -360,7 +360,7 @@ func sendLogWorker(level uint8, message []any) {
 		var text1 string
 		for _, m := range message {
 			var msgStr string
-			var temp interface{}
+			var temp any
 			var trimmedStr string
 			switch v := m.(type) {
 			case string:

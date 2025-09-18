@@ -91,7 +91,7 @@ func (fun *Fun) handleMessage(messageType int, message *[]byte, timer *time.Time
 		}
 		return
 	}
-	InfoLogger(string(*message))
+	InfoLogger(*message)
 	//处理文本信息
 	if messageType == websocket.TextMessage {
 		var request RequestInfo[map[string]any]
