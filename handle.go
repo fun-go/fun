@@ -56,7 +56,7 @@ func handleWebSocket(fun *Fun) func(w http.ResponseWriter, r *http.Request) {
 		ctx := Ctx{Id: id, fun: fun}
 		ctx.Ip = getIP(r)
 		ctx.Push = func(id string, requestId string, data any) bool {
-			return fun.Push(id, requestId, data)
+			return fun.push(id, requestId, data)
 		}
 		ctx.Close = func(id string, requestId string) {
 			fun.send(id, closeError(requestId))

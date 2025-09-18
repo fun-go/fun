@@ -82,7 +82,7 @@ func Wired[T any]() *T {
 		fieldTag := newTag(c.Tag)
 
 		// 检查是否有 "auto" 标签
-		if _, isAuto := fieldTag.GetTag("auto"); isAuto {
+		if _, isAuto := fieldTag.getTag("auto"); isAuto {
 			// 查找是否已有该类型的依赖
 			if dependency, loaded := fun.boxList.Load(c.Type); loaded {
 				// 如果已存在，直接赋值
@@ -119,7 +119,7 @@ func (fun *Fun) autowired(fieldValue reflect.Value) {
 		fieldTag := newTag(structField.Tag)
 
 		// 检查是否有 "auto" 标签
-		if _, isAuto := fieldTag.GetTag("auto"); isAuto {
+		if _, isAuto := fieldTag.getTag("auto"); isAuto {
 			// 查找是否已有该类型的依赖
 			if dependency, loaded := fun.boxList.Load(structField.Type); loaded {
 				// 如果已存在，直接赋值

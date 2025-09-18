@@ -28,7 +28,7 @@ func newTag(tag reflect.StructTag) *Tag {
 	return t
 }
 
-func (tag *Tag) GetTag(key string) (string, bool) {
+func (tag *Tag) getTag(key string) (string, bool) {
 	v, ok := tag.TagList[key]
 	return v, ok
 }

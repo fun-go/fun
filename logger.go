@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	PanicLevel = iota
+	PanicLevel uint8 = iota
 	ErrorLevel
 	WarnLevel
 	InfoLevel
@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	TerminalMode = iota
+	TerminalMode uint8 = iota
 	FileMode
 )
 
@@ -76,7 +76,11 @@ func deleteLogWorker() {
 }
 
 func getLogFilePath() string {
-	return threeYuan(logger.LogFilePath == "", "./log", logger.LogFilePath)
+	if logger.LogFilePath == "" {
+		return "./log"
+	} else {
+		return logger.LogFilePath
+	}
 }
 
 func cleanupExpiredLogs() {
@@ -322,6 +326,16 @@ func getNextLogFile(dirPath, dateStr string, text string) string {
 }
 
 func ConfigLogger(log Logger) {
+	// 验证 Level 是否为有效的枚举值
+	if log.Level > TraceLevel {
+		panic("fun: invalid logger level")
+	}
+
+	// 验证 Mode 是否为有效的枚举值
+	if log.Mode > FileMode {
+		panic("fun: invalid logger mode")
+	}
+
 	// 启动日志处理
 	logger = log
 }

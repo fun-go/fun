@@ -271,7 +271,7 @@ func (fun *Fun) returnData(id string, requestId string, data any, stackTrace str
 		result.Id = requestId
 		ErrorLogger(getErrorString(data) + "\n" + stackTrace)
 	}
-	map1 := ToLowerMap(result)
+	map1 := toLowerMap(result)
 	fun.send(id, map1)
 }
 
@@ -283,7 +283,7 @@ func getErrorString(data any) string {
 	}
 }
 
-func ToLowerMap(obj interface{}, t ...*testing.T) map[string]interface{} {
+func toLowerMap(obj interface{}, t ...*testing.T) map[string]interface{} {
 	// 先将对象序列化为 JSON 字节
 	jsonBytes, err := json.Marshal(obj)
 	if len(t) == 1 {

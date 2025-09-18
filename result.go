@@ -3,7 +3,7 @@ package fun
 import "reflect"
 
 const (
-	successCode = iota
+	successCode uint8 = iota
 	cellErrorCode
 	errorCode
 	closeErrorCode

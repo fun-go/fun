@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	FuncType = iota
+	FuncType uint8 = iota
 	ProxyType
 	CloseType
 )

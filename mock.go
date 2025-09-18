@@ -49,7 +49,7 @@ func getMessage[T any](t *testing.T, id string) Result[T] {
 }
 
 func mockSendJson(t *testing.T, requestInfo any) {
-	map1 := ToLowerMap(requestInfo, t)
+	map1 := toLowerMap(requestInfo, t)
 	writeMutex.Lock()
 	_ = testClient.WriteJSON(map1)
 	writeMutex.Unlock()
