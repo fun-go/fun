@@ -77,25 +77,25 @@ func (fun *Fun) handleResponse(conn *websocket.Conn, timer *time.Timer, ctx Ctx)
 	if err != nil {
 		return true
 	}
-	fun.handleMessage(messageType, &message, timer, &ctx)
+	fun.handleMessage(messageType, message, timer, &ctx)
 	return false
 }
 
 // 处理消息
-func (fun *Fun) handleMessage(messageType int, message *[]byte, timer *time.Timer, ctx *Ctx) {
+func (fun *Fun) handleMessage(messageType int, message []byte, timer *time.Timer, ctx *Ctx) {
 	if messageType == websocket.BinaryMessage {
 		//处理客户端ping信息 回复
-		if len(*message) == 1 && (*message)[0] == 0 {
+		if len(message) == 1 && (message)[0] == 0 {
 			fun.sendPong(ctx.Id)
 			timer.Reset(7 * time.Second)
 		}
 		return
 	}
-	InfoLogger(*message)
+	InfoLogger(message)
 	//处理文本信息
 	if messageType == websocket.TextMessage {
 		var request RequestInfo[map[string]any]
-		err := json.Unmarshal(*message, &request)
+		err := json.Unmarshal(message, &request)
 		defer func() {
 			if err := recover(); err != nil {
 				stackBuf := make([]byte, 8192)

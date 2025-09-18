@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
@@ -359,25 +360,31 @@ func sendLogWorker(level uint8, message []any) {
 	if logger.Level >= level {
 		var text1 string
 		for _, m := range message {
+			rv := reflect.ValueOf(m)
+			if rv.Kind() == reflect.Ptr && !rv.IsNil() {
+				rv = rv.Elem()
+				m = rv.Interface() // 替换 v 为解引用后的值
+			}
 			var msgStr string
-			var temp any
+			var temp interface{}
 			var trimmedStr string
 			switch v := m.(type) {
 			case string:
-				// 处理字符串类型
-				trimmedStr = strings.TrimSpace(v)
-				if trimmedStr == "" {
-					msgStr = fmt.Sprintf("%s", v)
-					break
-				}
-				err := json.Unmarshal([]byte(trimmedStr), &temp)
+				err := json.Unmarshal([]byte(v), &temp)
 				if err != nil {
-					// 不是有效的JSON字符串，直接输出
 					msgStr = fmt.Sprintf("%s", v)
 					break
 				}
-				// 检查解析后的数据是否为对象或数组
-
+				bs, _ := json.Marshal(&temp)
+				trimmedStr = string(bs)
+			case []byte:
+				err := json.Unmarshal(v, &temp)
+				if err != nil {
+					msgStr = fmt.Sprintf("%s", v)
+					break
+				}
+				bs, _ := json.Marshal(&temp)
+				trimmedStr = string(bs)
 			default:
 				// 处理非字符串类型
 				bs, _ := json.Marshal(v)
@@ -389,18 +396,12 @@ func sendLogWorker(level uint8, message []any) {
 				trimmedStr = string(bs)
 			}
 			switch temp.(type) {
-			case map[string]interface{}:
+			case map[string]interface{}, []interface{}:
 				// 是JSON对象
 				var out bytes.Buffer
 				json.Indent(&out, []byte(trimmedStr), "", "\t")
 				msgStr = fmt.Sprintf("\n%s", out.String())
-			case []interface{}:
-				// 是JSON数组
-				var out bytes.Buffer
-				json.Indent(&out, []byte(trimmedStr), "", "\t")
-				msgStr = fmt.Sprintf("\n%s", out.String())
 			default:
-				// 是字符串、数值、布尔值或null，直接输出
 				msgStr = fmt.Sprintf("%v", m)
 			}
 			text1 += msgStr + " "
