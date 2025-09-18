@@ -3,7 +3,7 @@ package fun
 import (
 	"bytes"
 	"os"
-	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -128,7 +128,7 @@ func genCode(templateContent string, outputFileName string, templateData any, la
 		panic(err.Error())
 	}
 	code := buf.Bytes()
-	fullPath := path.Join(directory, languageName)
+	fullPath := filepath.Join(directory, languageName)
 
 	_, err = os.Stat(fullPath)
 	if os.IsNotExist(err) {
@@ -137,7 +137,7 @@ func genCode(templateContent string, outputFileName string, templateData any, la
 			panic(err.Error())
 		}
 	}
-	err = os.WriteFile(path.Join(fullPath, outputFileName+"."+languageName), code, 0644)
+	err = os.WriteFile(filepath.Join(fullPath, outputFileName+"."+languageName), code, 0644)
 	if err != nil {
 		panic(err.Error())
 	}
