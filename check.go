@@ -163,6 +163,8 @@ func checkBox(s reflect.StructField, boxList map[reflect.Type]bool) {
 }
 
 func checkType(t reflect.Type) {
+	displayEnumType := reflect.TypeOf((*displayEnum)(nil)).Elem()
+	enumType := reflect.TypeOf((*enum)(nil)).Elem()
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -173,8 +175,7 @@ func checkType(t reflect.Type) {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.String, reflect.Bool:
-		displayEnumType := reflect.TypeOf((*displayEnum)(nil)).Elem()
-		if isPrivate(t.Name()) {
+		if t.Kind() == reflect.Uint8 && (t.Implements(displayEnumType) || t.Implements(enumType)) && isPrivate(t.Name()) {
 			panic("Fun:" + t.Name() + " cannot be Private")
 		}
 		if t.Kind() == reflect.Uint8 && t.Implements(displayEnumType) {
@@ -204,6 +205,8 @@ func checkType(t reflect.Type) {
 
 func checkDto(dto *reflect.Type, dtoMap any) {
 	dtoType := *dto
+	displayEnumType := reflect.TypeOf((*displayEnum)(nil)).Elem()
+	enumType := reflect.TypeOf((*enum)(nil)).Elem()
 	if dtoType.Kind() == reflect.Struct {
 		for i := 0; i < dtoType.NumField(); i++ {
 			f := dtoType.Field(i)
@@ -218,8 +221,6 @@ func checkDto(dto *reflect.Type, dtoMap any) {
 			if (t.Kind() == reflect.Struct || t.Kind() == reflect.Slice) && value != nil {
 				checkDto(&t, value)
 			}
-			displayEnumType := reflect.TypeOf((*displayEnum)(nil)).Elem()
-			enumType := reflect.TypeOf((*enum)(nil)).Elem()
 			if t.Kind() == reflect.Uint8 && (t.Implements(displayEnumType) || t.Implements(enumType)) {
 				//判断数字是否超出
 				statusValue := reflect.New(t).Elem()
