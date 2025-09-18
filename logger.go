@@ -326,16 +326,6 @@ func getNextLogFile(dirPath, dateStr string, text string) string {
 }
 
 func ConfigLogger(log Logger) {
-	// 验证 Level 是否为有效的枚举值
-	if log.Level > TraceLevel {
-		panic("fun: invalid logger level")
-	}
-
-	// 验证 Mode 是否为有效的枚举值
-	if log.Mode > FileMode {
-		panic("fun: invalid logger mode")
-	}
-
 	// 启动日志处理
 	logger = log
 }
