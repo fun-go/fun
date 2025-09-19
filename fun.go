@@ -120,7 +120,7 @@ func GenCode(genList ...Gen) {
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
 		}
 	}()
-	err := os.RemoveAll(directory)
+	err := os.RemoveAll(getDirectory())
 	if err != nil && !os.IsNotExist(err) {
 		panic(err.Error())
 	}

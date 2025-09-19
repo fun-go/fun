@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"text/template"
 	"unicode"
 )
@@ -128,7 +129,7 @@ func genCode(templateContent string, outputFileName string, templateData any, la
 		panic(err.Error())
 	}
 	code := buf.Bytes()
-	fullPath := filepath.Join(directory, languageName)
+	fullPath := filepath.Join(getDirectory(), languageName)
 
 	_, err = os.Stat(fullPath)
 	if os.IsNotExist(err) {
@@ -170,9 +171,19 @@ func firstLetterToUpper(s string) string {
 }
 
 var directory = "./gen"
+var directoryMutex sync.Mutex
 
 func SetOutput(path string) {
+	directoryMutex.Lock()
+	defer directoryMutex.Unlock()
 	directory = path
+}
+
+// 如果其他地方需要读取，也建议加锁
+func getDirectory() string {
+	directoryMutex.Lock()
+	defer directoryMutex.Unlock()
+	return directory
 }
 
 func camelToSnake(s string) string {

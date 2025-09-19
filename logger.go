@@ -80,6 +80,7 @@ func logWriterWorker() {
 }
 
 func deleteLogWorker() {
+	// 定期清理过期日志文件
 	logMutex.Lock()
 	cleanupExpiredLogs()
 	logMutex.Unlock()

@@ -9,22 +9,28 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var clientId = "lGbk6IVcT965Qs_zb30KS"
 var writeMutex sync.Mutex // 添加互斥锁
 
+var clientId = "lGbk6IVcT965Qs_zb30KS"
+var clientIdMutex sync.Mutex
+
 func SetTestClientId(id string) {
+	clientIdMutex.Lock()
+	defer clientIdMutex.Unlock()
 	clientId = id
 }
 
 var testClient *websocket.Conn = nil
 
 func mockClient(port uint16) {
+	clientIdMutex.Lock()
 	url := fmt.Sprintf("ws://127.0.0.1:%d?id=%s", port, clientId)
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	for err != nil {
 		conn, _, err = websocket.DefaultDialer.Dial(url, nil)
 		time.Sleep(100 * time.Millisecond)
 	}
+	clientIdMutex.Unlock()
 	testClient = conn
 	go func() {
 		for {
