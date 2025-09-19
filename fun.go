@@ -50,7 +50,6 @@ func BindValidate(tag string, fn validator.Func) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
-			logWg.Wait()
 			os.Exit(0)
 		}
 	}()
@@ -81,7 +80,6 @@ func Start(addr ...uint16) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
-			logWg.Wait()
 		}
 	}()
 	http.HandleFunc("/", handleWebSocket(GetFun()))
@@ -99,7 +97,6 @@ func GenCode(genList ...Gen) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
-			logWg.Wait()
 		}
 	}()
 	err := os.RemoveAll(directory)
@@ -119,7 +116,6 @@ func StartTls(certFile string, keyFile string, addr ...uint16) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
-			logWg.Wait()
 		}
 	}()
 	http.HandleFunc("/", handleWebSocket(GetFun()))
@@ -233,7 +229,6 @@ func BindService(service any, guardList ...Guard) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
-			logWg.Wait()
 			os.Exit(0)
 		}
 	}()
@@ -256,7 +251,6 @@ func BindGuard(guard Guard) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
-			logWg.Wait()
 			os.Exit(0)
 		}
 	}()

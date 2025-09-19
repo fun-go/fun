@@ -1,9 +1,7 @@
 package fun
 
 import (
-	"os"
 	"reflect"
-	"runtime"
 )
 
 func boxWired(data any, fun *Fun) {
@@ -48,15 +46,6 @@ func guardWired(data Guard, fun *Fun) {
 }
 
 func Wired[T any]() *T {
-	defer func() {
-		if err := recover(); err != nil {
-			stackBuf := make([]byte, 8192)
-			stackSize := runtime.Stack(stackBuf, false)
-			stackTrace := string(stackBuf[:stackSize])
-			PanicLogger(getErrorString(err) + "\n" + stackTrace)
-			os.Exit(0)
-		}
-	}()
 	var data1 T
 	t := reflect.TypeOf(data1)
 	data := new(T)
@@ -65,6 +54,11 @@ func Wired[T any]() *T {
 	}
 	if isPrivate(t.Name()) {
 		panic("Fun:" + t.Name() + " cannot be Private")
+	}
+	if newMethod, found := t.MethodByName("New"); found {
+		if newMethod.Type.NumIn() != 1 || newMethod.Type.NumOut() != 0 {
+			panic("Fun:" + t.Name() + " New method must have no parameters and no return values")
+		}
 	}
 	GetFun()
 	fun.mu.Lock()

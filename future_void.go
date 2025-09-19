@@ -33,7 +33,6 @@ func NewFutureVoid(callback func()) *FutureVoid {
 				} else {
 					fv.err = fmt.Errorf("%v", err)
 				}
-				logWg.Wait()
 			}
 			close(ch)
 		}()
@@ -67,7 +66,6 @@ func (t *FutureVoid) Then(callback func(error)) {
 				} else {
 					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
 				}
-				logWg.Wait()
 			}
 		}()
 		err := t.Join()

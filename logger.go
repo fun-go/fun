@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
@@ -23,8 +22,6 @@ const (
 	DebugLevel
 	TraceLevel
 )
-
-var logWg sync.WaitGroup
 
 const (
 	TerminalMode uint8 = iota
@@ -177,7 +174,6 @@ func getFileNameInfo(name string) fileName {
 	dateString := fileNameParts[0]
 	fileDate, err := time.Parse(dateLayout, dateString)
 	if err != nil {
-		WarnLogger(fmt.Sprintf("Failed to parse date from filename %s: %v", name, err))
 		deleteLog(name)
 		return fileName{}
 	}
@@ -217,8 +213,7 @@ func deleteLog(name string) {
 	}
 }
 
-func fileLogger(text string, wg *sync.WaitGroup) {
-	defer wg.Done()
+func fileLogger(text string) {
 	logMutex.Lock()
 	defer logMutex.Unlock()
 	// 确保日志目录存在
@@ -413,11 +408,6 @@ func sendLogWorker(level uint8, message []any) {
 	if logger.Level >= level {
 		var text1 string
 		for _, m := range message {
-			rv := reflect.ValueOf(m)
-			if rv.Kind() == reflect.Ptr && !rv.IsNil() {
-				rv = rv.Elem()
-				m = rv.Interface() // 替换 v 为解引用后的值
-			}
 			var msgStr string
 			var temp interface{}
 			var trimmedStr string
@@ -461,11 +451,7 @@ func sendLogWorker(level uint8, message []any) {
 		}
 		text := "[" + getCurrentTime() + "] [" + padString(getLevelName(level), 7) + "] " + getMethodNameLogger() + text1
 		if logger.Mode == FileMode {
-			// 文件模式
-			logWg.Add(1)
-			go func() {
-				fileLogger(text, &logWg)
-			}()
+			fileLogger(text)
 		} else {
 			fmt.Println(text)
 		}

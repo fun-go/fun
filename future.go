@@ -35,7 +35,6 @@ func NewFuture[T any](callback func() T) *Future[T] {
 				} else {
 					fv.err = fmt.Errorf("%v", err)
 				}
-				logWg.Wait()
 			}
 			close(ch)
 		}()
@@ -67,7 +66,6 @@ func (f *Future[T]) Then(callback func(T, error)) {
 				} else {
 					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
 				}
-				logWg.Wait()
 			}
 		}()
 		value, err := f.Join()
