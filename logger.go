@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -23,10 +24,23 @@ const (
 	TraceLevel
 )
 
+var logChan = make(chan string, 100)
+var logWg sync.WaitGroup
+
+func setFunService() {
+	atomic.StoreInt32(&funService, 1) // 释放语义，确保前面的写入完成
+}
+
+func isFunService() bool {
+	return atomic.LoadInt32(&funService) == 1 // 获取语义，确保看到最新值
+}
+
 const (
 	TerminalMode uint8 = iota
 	FileMode
 )
+
+var funService int32
 
 var logMutex sync.Mutex
 
@@ -60,6 +74,14 @@ type fileName struct {
 // 初始化日志系统
 func init() {
 	go deleteLogWorker() // 清理
+	go logWriterWorker()
+}
+
+func logWriterWorker() {
+	for text := range logChan {
+		fileLogger(text)
+		logWg.Done() // 每条日志处理完，计数 -1
+	}
 }
 
 func deleteLogWorker() {
@@ -103,7 +125,6 @@ func cleanupExpiredLogs() {
 		modeMutex.Lock()
 		logger.Mode = TerminalMode
 		modeMutex.Unlock()
-		ErrorLogger(fmt.Sprintf("Failed to check log directory status: %v", err))
 		return
 	}
 
@@ -113,7 +134,6 @@ func cleanupExpiredLogs() {
 		modeMutex.Lock()
 		logger.Mode = TerminalMode
 		modeMutex.Unlock()
-		ErrorLogger(fmt.Sprintf("Failed to read log directory: %v", err))
 		return
 	}
 
@@ -122,8 +142,6 @@ func cleanupExpiredLogs() {
 	currentTimeMillis := time.Now().UnixMilli()
 	expireThreshold := currentTimeMillis - expireDuration.Milliseconds()
 
-	// 遍历所有文件
-	cleanedCount := 0
 	for _, entry := range entries {
 		if !entry.IsDir() { // 只处理文件
 			fileNameInfo := getFileNameInfo(entry.Name())
@@ -143,20 +161,12 @@ func cleanupExpiredLogs() {
 						modeMutex.Lock()
 						logger.Mode = TerminalMode
 						modeMutex.Unlock()
-						ErrorLogger(fmt.Sprintf("Failed to delete expired log file %s: %v", fullPath, err))
 						return
 					}
-				} else {
-					InfoLogger(fmt.Sprintf("Deleted expired log file: %s (date: %s, index: %d)",
-						fullPath,
-						time.Unix(0, fileNameInfo.LoggerTime*int64(time.Millisecond)).Format("2006-01-02"),
-						fileNameInfo.index))
-					cleanedCount++
 				}
 			}
 		}
 	}
-	InfoLogger(fmt.Sprintf("Log cleanup completed. Deleted %d expired files", cleanedCount))
 }
 
 func getFileNameInfo(name string) fileName {
@@ -164,7 +174,6 @@ func getFileNameInfo(name string) fileName {
 	fileNameParts := strings.Split(name, ".log.")
 	// 检查文件名格式是否正确
 	if len(fileNameParts) != 2 {
-		WarnLogger(fmt.Sprintf("Invalid log filename format: %s", name))
 		deleteLog(name)
 		return fileName{}
 	}
@@ -185,7 +194,6 @@ func getFileNameInfo(name string) fileName {
 
 	fileIndex, err := strconv.ParseInt(indexString, 10, 32)
 	if err != nil {
-		WarnLogger(fmt.Sprintf("Failed to parse index from filename %s: %v", name, err))
 		deleteLog(name)
 		return fileName{}
 	}
@@ -205,11 +213,8 @@ func deleteLog(name string) {
 			modeMutex.Lock()
 			logger.Mode = TerminalMode
 			modeMutex.Unlock()
-			ErrorLogger(fmt.Sprintf("Failed to delete log file %s: %v", fullPath, err))
 			return
 		}
-	} else {
-		InfoLogger(fmt.Sprintf("Successfully deleted log file: %s", fullPath))
 	}
 }
 
@@ -228,7 +233,6 @@ func fileLogger(text string) {
 			modeMutex.Unlock()
 			return
 		}
-		InfoLogger(fmt.Sprintf("Created log directory: %s", getLogFilePath()))
 	}
 
 	// 构建日志文件路径
@@ -246,7 +250,6 @@ func fileLogger(text string) {
 		modeMutex.Lock()
 		logger.Mode = TerminalMode
 		modeMutex.Unlock()
-		ErrorLogger(fmt.Sprintf("Failed to open log file %s: %v", logFilePath, err))
 		return
 	}
 	defer func(file *os.File) {
@@ -255,7 +258,9 @@ func fileLogger(text string) {
 
 	_, err = file.WriteString(text + "\n")
 	if err != nil {
-		ErrorLogger(fmt.Sprintf("Failed to write to log file %s: %v", logFilePath, err))
+		modeMutex.Lock()
+		logger.Mode = TerminalMode
+		modeMutex.Unlock()
 	}
 }
 
@@ -305,7 +310,6 @@ func getNextLogFile(dirPath, dateStr string, text string) (string, error) {
 		modeMutex.Lock()
 		logger.Mode = TerminalMode
 		modeMutex.Unlock()
-		WarnLogger(fmt.Sprintf("Failed to read log directory %s: %v", dirPath, err))
 		return filepath.Join(dirPath, dateStr+".log.1"), err
 	}
 
@@ -451,7 +455,12 @@ func sendLogWorker(level uint8, message []any) {
 		}
 		text := "[" + getCurrentTime() + "] [" + padString(getLevelName(level), 7) + "] " + getMethodNameLogger() + text1
 		if logger.Mode == FileMode {
-			fileLogger(text)
+			if isFunService() {
+				logWg.Add(1)
+				logChan <- text
+			} else {
+				fileLogger(text)
+			}
 		} else {
 			fmt.Println(text)
 		}

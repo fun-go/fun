@@ -45,7 +45,6 @@ func (f *Future[T]) Then(callback func(T, error)) {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-
 			}
 		}()
 		value, err := f.Join()

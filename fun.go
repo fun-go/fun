@@ -74,12 +74,14 @@ func GetFun() *Fun {
 }
 
 func Start(addr ...uint16) {
+	setFunService()
 	defer func() {
 		if err := recover(); err != nil {
 			stackBuf := make([]byte, 8192)
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
+			logWg.Wait()
 		}
 	}()
 	http.HandleFunc("/", handleWebSocket(GetFun()))
@@ -110,12 +112,14 @@ func GenCode(genList ...Gen) {
 }
 
 func StartTls(certFile string, keyFile string, addr ...uint16) {
+	isFunService = true
 	defer func() {
 		if err := recover(); err != nil {
 			stackBuf := make([]byte, 8192)
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
+			logWg.Wait()
 		}
 	}()
 	http.HandleFunc("/", handleWebSocket(GetFun()))
