@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -27,24 +26,12 @@ const (
 var logChan = make(chan string, 100)
 var logWg sync.WaitGroup
 
-func setFunService() {
-	atomic.StoreInt32(&funService, 1) // 释放语义，确保前面的写入完成
-}
-
-func isFunService() bool {
-	return atomic.LoadInt32(&funService) == 1 // 获取语义，确保看到最新值
-}
-
 const (
 	TerminalMode uint8 = iota
 	FileMode
 )
 
-var funService int32
-
 var logMutex sync.Mutex
-
-var modeMutex sync.Mutex
 
 type Logger struct {
 	Level          uint8
@@ -53,6 +40,7 @@ type Logger struct {
 	MaxNumberFiles uint64 //文件最多数量
 	ExpireLogsDays uint8  //文件保留时间
 	LogFilePath    string
+	isFunService   bool
 }
 
 var logger Logger = Logger{
@@ -62,6 +50,7 @@ var logger Logger = Logger{
 	MaxNumberFiles: 0,
 	ExpireLogsDays: 0,
 	LogFilePath:    "../log",
+	isFunService:   false,
 }
 
 type fileName struct {
@@ -79,22 +68,31 @@ func init() {
 
 func logWriterWorker() {
 	for text := range logChan {
-		fileLogger(text)
+		logMutex.Lock()
+		if logger.Mode == FileMode {
+			fileLogger(text)
+		} else {
+			fmt.Println(text)
+		}
 		logWg.Done() // 每条日志处理完，计数 -1
+		logMutex.Unlock()
 	}
 }
 
 func deleteLogWorker() {
-	// 定期清理过期日志文件
+	logMutex.Lock()
 	cleanupExpiredLogs()
+	logMutex.Unlock()
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
+			logMutex.Lock()
 			if logger.Mode == FileMode {
 				cleanupExpiredLogs()
 			}
+			logMutex.Unlock()
 		}
 	}
 }
@@ -108,8 +106,6 @@ func getLogFilePath() string {
 }
 
 func cleanupExpiredLogs() {
-	logMutex.Lock()
-	defer logMutex.Unlock()
 	// 如果没有设置过期天数，不进行清理
 	if logger.ExpireLogsDays <= 0 {
 		return
@@ -122,18 +118,12 @@ func cleanupExpiredLogs() {
 	}
 
 	if err != nil {
-		modeMutex.Lock()
-		logger.Mode = TerminalMode
-		modeMutex.Unlock()
 		return
 	}
 
 	// 读取目录中的所有条目
 	entries, err := os.ReadDir(getLogFilePath())
 	if err != nil {
-		modeMutex.Lock()
-		logger.Mode = TerminalMode
-		modeMutex.Unlock()
 		return
 	}
 
@@ -148,7 +138,6 @@ func cleanupExpiredLogs() {
 
 			// 检查是否是有效的日志文件
 			if fileNameInfo.LoggerTime == 0 {
-				// 无效的日志文件名格式，跳过处理
 				continue
 			}
 
@@ -158,9 +147,6 @@ func cleanupExpiredLogs() {
 				err := os.Remove(fullPath)
 				if err != nil {
 					if !os.IsNotExist(err) {
-						modeMutex.Lock()
-						logger.Mode = TerminalMode
-						modeMutex.Unlock()
 						return
 					}
 				}
@@ -210,17 +196,12 @@ func deleteLog(name string) {
 	err := os.Remove(fullPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			modeMutex.Lock()
-			logger.Mode = TerminalMode
-			modeMutex.Unlock()
 			return
 		}
 	}
 }
 
 func fileLogger(text string) {
-	logMutex.Lock()
-	defer logMutex.Unlock()
 	// 确保日志目录存在
 	currentDate := getCurrentData()
 
@@ -228,9 +209,6 @@ func fileLogger(text string) {
 	if os.IsNotExist(err) {
 		err = os.MkdirAll(getLogFilePath(), os.ModePerm)
 		if err != nil {
-			modeMutex.Lock()
-			logger.Mode = TerminalMode
-			modeMutex.Unlock()
 			return
 		}
 	}
@@ -247,21 +225,13 @@ func fileLogger(text string) {
 	// 写入日志文件
 	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		modeMutex.Lock()
-		logger.Mode = TerminalMode
-		modeMutex.Unlock()
 		return
 	}
 	defer func(file *os.File) {
 		_ = file.Close()
 	}(file)
 
-	_, err = file.WriteString(text + "\n")
-	if err != nil {
-		modeMutex.Lock()
-		logger.Mode = TerminalMode
-		modeMutex.Unlock()
-	}
+	_, _ = file.WriteString(text + "\n")
 }
 
 func removeOldestLogFile(entries []os.DirEntry) {
@@ -307,9 +277,6 @@ func getNextLogFile(dirPath, dateStr string, text string) (string, error) {
 	// 读取目录中的所有文件
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
-		modeMutex.Lock()
-		logger.Mode = TerminalMode
-		modeMutex.Unlock()
 		return filepath.Join(dirPath, dateStr+".log.1"), err
 	}
 
@@ -353,9 +320,6 @@ func getNextLogFile(dirPath, dateStr string, text string) (string, error) {
 				return filepath.Join(dirPath, fmt.Sprintf("%s.log.%d", dateStr, maxIndex+1)), nil
 			}
 		} else {
-			modeMutex.Lock()
-			logger.Mode = TerminalMode
-			modeMutex.Unlock()
 			return "", err
 		}
 	}
@@ -366,7 +330,9 @@ func getNextLogFile(dirPath, dateStr string, text string) (string, error) {
 
 func ConfigLogger(log Logger) {
 	// 启动日志处理
+	logMutex.Lock()
 	logger = log
+	logMutex.Unlock()
 }
 
 func getCurrentTime() string {
@@ -454,16 +420,18 @@ func sendLogWorker(level uint8, message []any) {
 			text1 += msgStr + " "
 		}
 		text := "[" + getCurrentTime() + "] [" + padString(getLevelName(level), 7) + "] " + getMethodNameLogger() + text1
-		if logger.Mode == FileMode {
-			if isFunService() {
-				logWg.Add(1)
-				logChan <- text
-			} else {
-				fileLogger(text)
-			}
+		logMutex.Lock()
+		if logger.isFunService {
+			logWg.Add(1)
+			logChan <- text
 		} else {
-			fmt.Println(text)
+			if logger.Mode == FileMode {
+				fileLogger(text)
+			} else {
+				fmt.Println(text)
+			}
 		}
+		logMutex.Unlock()
 	}
 }
 

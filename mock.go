@@ -56,7 +56,6 @@ func mockSendJson(t *testing.T, requestInfo any) {
 }
 
 func MockRequest[T any](t *testing.T, requestInfo any) Result[T] {
-	defer logWg.Wait()
 	newClientOrService()
 	requestId := reflect.ValueOf(requestInfo).FieldByName("Id").String()
 	mockSendJson(t, requestInfo)
@@ -69,7 +68,6 @@ type On[T any] struct {
 }
 
 func MockProxyClose(t *testing.T, id string) {
-	defer logWg.Wait()
 	requestInfo := RequestInfo[any]{
 		Id:   id,
 		Type: CloseType,
@@ -78,7 +76,6 @@ func MockProxyClose(t *testing.T, id string) {
 }
 
 func MockProxy[T any](t *testing.T, requestInfo any, on On[T], seconds int64) {
-	defer logWg.Wait()
 	newClientOrService()
 	requestId := reflect.ValueOf(requestInfo).FieldByName("Id").String()
 
@@ -122,7 +119,7 @@ func newClientOrService() {
 		port := randomPort()
 		testPort = &port
 		go func() {
-			Start(port)
+			testStart(port)
 		}()
 		mockClient(*testPort)
 	})
