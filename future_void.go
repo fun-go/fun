@@ -2,7 +2,6 @@ package fun
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 )
 
@@ -20,19 +19,7 @@ func NewFutureVoid(callback func()) *FutureVoid {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				stackBuf := make([]byte, 8192)
-				stackSize := runtime.Stack(stackBuf, false)
-				stackTrace := string(stackBuf[:stackSize])
-				if value, ok := err.(Result[any]); ok {
-					InfoLogger(err)
-				} else {
-					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
-				}
-				if e, ok := err.(error); ok {
-					fv.err = e
-				} else {
-					fv.err = fmt.Errorf("%v", err)
-				}
+				fv.err = fmt.Errorf("%v", err)
 			}
 			close(ch)
 		}()
@@ -42,7 +29,6 @@ func NewFutureVoid(callback func()) *FutureVoid {
 
 		ch <- struct{}{} // signal completion
 	}()
-
 	return fv
 }
 
@@ -58,14 +44,6 @@ func (t *FutureVoid) Then(callback func(error)) {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				stackBuf := make([]byte, 8192)
-				stackSize := runtime.Stack(stackBuf, false)
-				stackTrace := string(stackBuf[:stackSize])
-				if value, ok := err.(Result[any]); ok {
-					InfoLogger(err)
-				} else {
-					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
-				}
 			}
 		}()
 		err := t.Join()

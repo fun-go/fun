@@ -2,7 +2,6 @@ package fun
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 )
 
@@ -22,19 +21,7 @@ func NewFuture[T any](callback func() T) *Future[T] {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				stackBuf := make([]byte, 8192)
-				stackSize := runtime.Stack(stackBuf, false)
-				stackTrace := string(stackBuf[:stackSize])
-				if value, ok := err.(Result[any]); ok {
-					InfoLogger(err)
-				} else {
-					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
-				}
-				if e, ok := err.(error); ok {
-					fv.err = e
-				} else {
-					fv.err = fmt.Errorf("%v", err)
-				}
+				fv.err = fmt.Errorf("%v", err)
 			}
 			close(ch)
 		}()
@@ -58,14 +45,7 @@ func (f *Future[T]) Then(callback func(T, error)) {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
-				stackBuf := make([]byte, 8192)
-				stackSize := runtime.Stack(stackBuf, false)
-				stackTrace := string(stackBuf[:stackSize])
-				if value, ok := err.(Result[any]); ok {
-					InfoLogger(err)
-				} else {
-					ErrorLogger(getErrorString(value) + "\n" + stackTrace)
-				}
+
 			}
 		}()
 		value, err := f.Join()

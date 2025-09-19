@@ -332,6 +332,15 @@ func convertArrayKeyToLowerCase(arr []interface{}) []interface{} {
 			result[i] = item
 		}
 	}
-
 	return result
+}
+
+func WrapPanic(call func()) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", err)
+		}
+	}()
+	call()
+	return
 }
