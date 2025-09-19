@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	PanicLevel = iota
+	PanicLevel uint8 = iota
 	ErrorLevel
 	WarnLevel
 	InfoLevel
@@ -24,12 +24,16 @@ const (
 	TraceLevel
 )
 
+var logWg sync.WaitGroup
+
 const (
-	TerminalMode = iota
+	TerminalMode uint8 = iota
 	FileMode
 )
 
 var logMutex sync.Mutex
+
+var modeMutex sync.Mutex
 
 type Logger struct {
 	Level          uint8
@@ -63,6 +67,7 @@ func init() {
 
 func deleteLogWorker() {
 	// 定期清理过期日志文件
+	cleanupExpiredLogs()
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
 	for {
@@ -76,7 +81,11 @@ func deleteLogWorker() {
 }
 
 func getLogFilePath() string {
-	return threeYuan(logger.LogFilePath == "", "./log", logger.LogFilePath)
+	if logger.LogFilePath == "" {
+		return "./log"
+	} else {
+		return logger.LogFilePath
+	}
 }
 
 func cleanupExpiredLogs() {
@@ -94,6 +103,9 @@ func cleanupExpiredLogs() {
 	}
 
 	if err != nil {
+		modeMutex.Lock()
+		logger.Mode = TerminalMode
+		modeMutex.Unlock()
 		ErrorLogger(fmt.Sprintf("Failed to check log directory status: %v", err))
 		return
 	}
@@ -101,6 +113,9 @@ func cleanupExpiredLogs() {
 	// 读取目录中的所有条目
 	entries, err := os.ReadDir(getLogFilePath())
 	if err != nil {
+		modeMutex.Lock()
+		logger.Mode = TerminalMode
+		modeMutex.Unlock()
 		ErrorLogger(fmt.Sprintf("Failed to read log directory: %v", err))
 		return
 	}
@@ -128,7 +143,11 @@ func cleanupExpiredLogs() {
 				err := os.Remove(fullPath)
 				if err != nil {
 					if !os.IsNotExist(err) {
+						modeMutex.Lock()
+						logger.Mode = TerminalMode
+						modeMutex.Unlock()
 						ErrorLogger(fmt.Sprintf("Failed to delete expired log file %s: %v", fullPath, err))
+						return
 					}
 				} else {
 					InfoLogger(fmt.Sprintf("Deleted expired log file: %s (date: %s, index: %d)",
@@ -187,14 +206,19 @@ func deleteLog(name string) {
 	err := os.Remove(fullPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
+			modeMutex.Lock()
+			logger.Mode = TerminalMode
+			modeMutex.Unlock()
 			ErrorLogger(fmt.Sprintf("Failed to delete log file %s: %v", fullPath, err))
+			return
 		}
 	} else {
 		InfoLogger(fmt.Sprintf("Successfully deleted log file: %s", fullPath))
 	}
 }
 
-func fileLogger(text string) {
+func fileLogger(text string, wg *sync.WaitGroup) {
+	defer wg.Done()
 	logMutex.Lock()
 	defer logMutex.Unlock()
 	// 确保日志目录存在
@@ -202,7 +226,13 @@ func fileLogger(text string) {
 
 	_, err := os.Stat(getLogFilePath())
 	if os.IsNotExist(err) {
-		_ = os.MkdirAll(getLogFilePath(), os.ModePerm)
+		err = os.MkdirAll(getLogFilePath(), os.ModePerm)
+		if err != nil {
+			modeMutex.Lock()
+			logger.Mode = TerminalMode
+			modeMutex.Unlock()
+			return
+		}
 		InfoLogger(fmt.Sprintf("Created log directory: %s", getLogFilePath()))
 	}
 
@@ -211,10 +241,16 @@ func fileLogger(text string) {
 	logFilePath := filepath.Join(getLogFilePath(), logFileName)
 
 	// 获取当前目录下所有日志文件以确定下一个文件索引
-	logFilePath = getNextLogFile(getLogFilePath(), currentDate, text)
+	logFilePath, err = getNextLogFile(getLogFilePath(), currentDate, text)
+	if err != nil {
+		return
+	}
 	// 写入日志文件
 	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
+		modeMutex.Lock()
+		logger.Mode = TerminalMode
+		modeMutex.Unlock()
 		ErrorLogger(fmt.Sprintf("Failed to open log file %s: %v", logFilePath, err))
 		return
 	}
@@ -267,12 +303,15 @@ func removeOldestLogFile(entries []os.DirEntry) {
 }
 
 // 获取下一个应该写入的日志文件
-func getNextLogFile(dirPath, dateStr string, text string) string {
+func getNextLogFile(dirPath, dateStr string, text string) (string, error) {
 	// 读取目录中的所有文件
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
+		modeMutex.Lock()
+		logger.Mode = TerminalMode
+		modeMutex.Unlock()
 		WarnLogger(fmt.Sprintf("Failed to read log directory %s: %v", dirPath, err))
-		return filepath.Join(dirPath, dateStr+".log.1")
+		return filepath.Join(dirPath, dateStr+".log.1"), err
 	}
 
 	var maxIndex int32 = 0
@@ -288,7 +327,7 @@ func getNextLogFile(dirPath, dateStr string, text string) string {
 	// 如果没有现有文件，创建第一个
 	if len(existingFiles) == 0 {
 		removeOldestLogFile(entries)
-		return filepath.Join(dirPath, dateStr+".log.1")
+		return filepath.Join(dirPath, dateStr+".log.1"), nil
 	}
 
 	// 查找最大索引
@@ -302,7 +341,7 @@ func getNextLogFile(dirPath, dateStr string, text string) string {
 	}
 	if maxIndex == 0 {
 		removeOldestLogFile(entries)
-		return filepath.Join(dirPath, dateStr+".log.1")
+		return filepath.Join(dirPath, dateStr+".log.1"), nil
 	}
 
 	// 检查最大索引的文件是否超过大小限制
@@ -312,13 +351,18 @@ func getNextLogFile(dirPath, dateStr string, text string) string {
 			maxSizeBytes := int64(logger.MaxSizeFile) * 1024 * 1024 // 转换为字节
 			if fileInfo.Size()+int64(len(text)) > maxSizeBytes {
 				removeOldestLogFile(entries)
-				return filepath.Join(dirPath, fmt.Sprintf("%s.log.%d", dateStr, maxIndex+1))
+				return filepath.Join(dirPath, fmt.Sprintf("%s.log.%d", dateStr, maxIndex+1)), nil
 			}
+		} else {
+			modeMutex.Lock()
+			logger.Mode = TerminalMode
+			modeMutex.Unlock()
+			return "", err
 		}
 	}
 
 	// 使用当前最大索引文件
-	return filepath.Join(dirPath, fmt.Sprintf("%s.log.%d", dateStr, maxIndex))
+	return filepath.Join(dirPath, fmt.Sprintf("%s.log.%d", dateStr, maxIndex)), nil
 }
 
 func ConfigLogger(log Logger) {
@@ -418,7 +462,10 @@ func sendLogWorker(level uint8, message []any) {
 		text := "[" + getCurrentTime() + "] [" + padString(getLevelName(level), 7) + "] " + getMethodNameLogger() + text1
 		if logger.Mode == FileMode {
 			// 文件模式
-			fileLogger(text)
+			logWg.Add(1)
+			go func() {
+				fileLogger(text, &logWg)
+			}()
 		} else {
 			fmt.Println(text)
 		}

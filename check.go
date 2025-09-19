@@ -156,13 +156,15 @@ func checkBox(s reflect.StructField, boxList map[reflect.Type]bool) {
 		f := s.Type.Elem().Field(i)
 		fieldTag := newTag(f.Tag)
 		// 检查是否有 "auto" 标签
-		if _, isAuto := fieldTag.GetTag("auto"); isAuto {
+		if _, isAuto := fieldTag.getTag("auto"); isAuto {
 			checkBox(f, boxList)
 		}
 	}
 }
 
 func checkType(t reflect.Type) {
+	displayEnumType := reflect.TypeOf((*displayEnum)(nil)).Elem()
+	enumType := reflect.TypeOf((*enum)(nil)).Elem()
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -173,8 +175,6 @@ func checkType(t reflect.Type) {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.String, reflect.Bool:
-		displayEnumType := reflect.TypeOf((*displayEnum)(nil)).Elem()
-		enumType := reflect.TypeOf((*enum)(nil)).Elem()
 		if t.Kind() == reflect.Uint8 && (t.Implements(displayEnumType) || t.Implements(enumType)) && isPrivate(t.Name()) {
 			panic("Fun:" + t.Name() + " cannot be Private")
 		}
@@ -205,6 +205,8 @@ func checkType(t reflect.Type) {
 
 func checkDto(dto *reflect.Type, dtoMap any) {
 	dtoType := *dto
+	displayEnumType := reflect.TypeOf((*displayEnum)(nil)).Elem()
+	enumType := reflect.TypeOf((*enum)(nil)).Elem()
 	if dtoType.Kind() == reflect.Struct {
 		for i := 0; i < dtoType.NumField(); i++ {
 			f := dtoType.Field(i)
@@ -218,6 +220,21 @@ func checkDto(dto *reflect.Type, dtoMap any) {
 			}
 			if (t.Kind() == reflect.Struct || t.Kind() == reflect.Slice) && value != nil {
 				checkDto(&t, value)
+			}
+			if t.Kind() == reflect.Uint8 && (t.Implements(displayEnumType) || t.Implements(enumType)) {
+				//判断数字是否超出
+				statusValue := reflect.New(t).Elem()
+				var num uint8
+				if t.Implements(displayEnumType) {
+					enumValue := statusValue.Interface().(displayEnum)
+					num = uint8(len(enumValue.Names()))
+				} else {
+					enumValue := statusValue.Interface().(enum)
+					num = uint8(len(enumValue.Names()))
+				}
+				if value.(uint8) >= num {
+					panic(callError("Fun:" + f.Name + " Dto value out of range"))
+				}
 			}
 		}
 	} else {

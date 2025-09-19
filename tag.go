@@ -21,15 +21,14 @@ func newTag(tag reflect.StructTag) *Tag {
 		keyValue := strings.Split(pair, ":")
 		if len(keyValue) == 1 {
 			t.TagList[keyValue[0]] = ""
-		}
-		if len(keyValue) == 2 {
+		} else {
 			t.TagList[keyValue[0]] = keyValue[1]
 		}
 	}
 	return t
 }
 
-func (tag *Tag) GetTag(key string) (string, bool) {
+func (tag *Tag) getTag(key string) (string, bool) {
 	v, ok := tag.TagList[key]
 	return v, ok
 }

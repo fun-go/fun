@@ -50,6 +50,7 @@ func BindValidate(tag string, fn validator.Func) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
+			logWg.Wait()
 			os.Exit(0)
 		}
 	}()
@@ -80,6 +81,7 @@ func Start(addr ...uint16) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
+			logWg.Wait()
 		}
 	}()
 	http.HandleFunc("/", handleWebSocket(GetFun()))
@@ -97,6 +99,7 @@ func GenCode(genList ...Gen) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
+			logWg.Wait()
 		}
 	}()
 	err := os.RemoveAll(directory)
@@ -116,6 +119,7 @@ func StartTls(certFile string, keyFile string, addr ...uint16) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
+			logWg.Wait()
 		}
 	}()
 	http.HandleFunc("/", handleWebSocket(GetFun()))
@@ -229,6 +233,7 @@ func BindService(service any, guardList ...Guard) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
+			logWg.Wait()
 			os.Exit(0)
 		}
 	}()
@@ -251,6 +256,7 @@ func BindGuard(guard Guard) {
 			stackSize := runtime.Stack(stackBuf, false)
 			stackTrace := string(stackBuf[:stackSize])
 			PanicLogger(getErrorString(err) + "\n" + stackTrace)
+			logWg.Wait()
 			os.Exit(0)
 		}
 	}()
@@ -271,7 +277,7 @@ func (fun *Fun) returnData(id string, requestId string, data any, stackTrace str
 		result.Id = requestId
 		ErrorLogger(getErrorString(data) + "\n" + stackTrace)
 	}
-	map1 := ToLowerMap(result)
+	map1 := toLowerMap(result)
 	fun.send(id, map1)
 }
 
@@ -283,7 +289,7 @@ func getErrorString(data any) string {
 	}
 }
 
-func ToLowerMap(obj interface{}, t ...*testing.T) map[string]interface{} {
+func toLowerMap(obj interface{}, t ...*testing.T) map[string]interface{} {
 	// 先将对象序列化为 JSON 字节
 	jsonBytes, err := json.Marshal(obj)
 	if len(t) == 1 {

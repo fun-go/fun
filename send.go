@@ -14,7 +14,7 @@ func (fun *Fun) send(id string, text any) bool {
 }
 
 // 推送
-func (fun *Fun) Push(id string, requestId string, data any) bool {
+func (fun *Fun) push(id string, requestId string, data any) bool {
 	connInfo, ok := fun.connList.Load(id)
 	if !ok {
 		return false
@@ -32,7 +32,7 @@ func (fun *Fun) Push(id string, requestId string, data any) bool {
 	// 准备数据
 	result := success(data)
 	result.Id = requestId
-	map1 := ToLowerMap(result)
+	map1 := toLowerMap(result)
 
 	// 只在实际发送时加锁
 	loadConnInfo.mu.Lock()
