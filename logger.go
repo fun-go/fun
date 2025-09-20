@@ -74,26 +74,20 @@ func logWriterWorker() {
 		} else {
 			fmt.Println(text)
 		}
-		logWg.Done() // 每条日志处理完，计数 -1
-		logMutex.Unlock()
 	}
 }
 
 func deleteLogWorker() {
 	// 定期清理过期日志文件
-	logMutex.Lock()
 	cleanupExpiredLogs()
-	logMutex.Unlock()
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			logMutex.Lock()
 			if logger.Mode == FileMode {
 				cleanupExpiredLogs()
 			}
-			logMutex.Unlock()
 		}
 	}
 }
@@ -107,6 +101,8 @@ func getLogFilePath() string {
 }
 
 func cleanupExpiredLogs() {
+	logWg.Done() // 每条日志处理完，计数 -1
+	defer logMutex.Unlock()
 	// 如果没有设置过期天数，不进行清理
 	if logger.ExpireLogsDays <= 0 {
 		return
@@ -203,6 +199,8 @@ func deleteLog(name string) {
 }
 
 func fileLogger(text string) {
+	logWg.Done() // 每条日志处理完，计数 -1
+	defer logMutex.Unlock()
 	// 确保日志目录存在
 	currentDate := getCurrentData()
 
@@ -330,10 +328,7 @@ func getNextLogFile(dirPath, dateStr string, text string) (string, error) {
 }
 
 func ConfigLogger(log Logger) {
-	// 启动日志处理
-	logMutex.Lock()
 	logger = log
-	logMutex.Unlock()
 }
 
 func getCurrentTime() string {
@@ -421,7 +416,6 @@ func sendLogWorker(level uint8, message []any) {
 			text1 += msgStr + " "
 		}
 		text := "[" + getCurrentTime() + "] [" + padString(getLevelName(level), 7) + "] " + getMethodNameLogger() + text1
-		logMutex.Lock()
 		if logger.isFunService {
 			logWg.Add(1)
 			logChan <- text
@@ -432,7 +426,6 @@ func sendLogWorker(level uint8, message []any) {
 				fmt.Println(text)
 			}
 		}
-		logMutex.Unlock()
 	}
 }
 

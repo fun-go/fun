@@ -74,9 +74,7 @@ func GetFun() *Fun {
 }
 
 func Start(addr ...uint16) {
-	logMutex.Lock()
 	logger.isFunService = true
-	logMutex.Unlock()
 	defer func() {
 		if err := recover(); err != nil {
 			stackBuf := make([]byte, 8192)
@@ -131,9 +129,7 @@ func GenCode(genList ...Gen) {
 }
 
 func StartTls(certFile string, keyFile string, addr ...uint16) {
-	logMutex.Lock()
 	logger.isFunService = true
-	logMutex.Unlock()
 	defer func() {
 		if err := recover(); err != nil {
 			stackBuf := make([]byte, 8192)
